@@ -82,7 +82,7 @@ class SignedConv(MessagePassing):
         """"""
         # hyper linear
         pos_edge_index = add_remaining_self_loops(pos_edge_index, num_nodes=x.size(0))[0]
-
+        # 欧式---》双曲 x:input
         x = self.manifolds.proj(self.manifolds.expmap0(self.manifolds.proj_tan0(x, self.c), c=self.c), c=self.c)
         if self.manifolds.name != 'PoincareBall':
             drop_weight = F.dropout(self.weight, self.dropout, training=self.training)
@@ -93,6 +93,7 @@ class SignedConv(MessagePassing):
         if torch.isnan(res).any():
             print("check here")
         assert not torch.isnan(res).any()
+        #偏置 wx+b
         if self.use_bias:
             bias = self.manifolds.proj_tan0(self.bias.view(1, -1), self.c)
             hyp_bias = self.manifolds.expmap0(bias, self.c)
@@ -100,6 +101,7 @@ class SignedConv(MessagePassing):
             res = self.manifolds.mobius_add(res, hyp_bias, c=self.c)
             res = self.manifolds.proj(res, self.c)
         torch.cuda.empty_cache()
+        # 双曲-》欧式
         x = (self.manifolds.logmap0(res, c=self.c)).cuda()
 
         if self.first_aggr:
@@ -109,6 +111,7 @@ class SignedConv(MessagePassing):
                 assert x.size(1) == self.in_channels
 
             if return_attention_weights:
+                # 在欧式下的线性层
                 x_trans_pos = (self.lin_pos_agg(x), self.lin_pos_agg(x))
                 x_trans_neg = (self.lin_neg_agg(x), self.lin_neg_agg(x))
             else:
@@ -138,11 +141,12 @@ class SignedConv(MessagePassing):
             ], dim=1)
         assert not torch.isnan(x_pos).any()
         assert not torch.isnan(x_neg).any()
+        #欧式-》双曲
         x_pos = self.manifolds.proj(self.manifolds.expmap0(self.lin_pos(x_pos), c=self.c), c=self.c)
         x_neg = self.manifolds.proj(self.manifolds.expmap0(self.lin_neg(x_neg), c=self.c), c=self.c)
 
         x_out = torch.cat([x_pos, x_neg], dim=1)
-
+        # 欧式下面的激活
         xt = self.act(self.manifolds.logmap0(x_out, c=self.c), self.negative_slope)
         xt = self.manifolds.proj_tan0(xt, c=self.c)
         xt = self.manifolds.proj(self.manifolds.expmap0(xt, c=self.c), c=self.c)

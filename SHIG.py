@@ -214,6 +214,7 @@ class SHIG_Model(torch.nn.Module):
         loss_1 = self.pos_embedding_loss(z, pos_edge_index)
         loss_2 = self.neg_embedding_loss(z, neg_edge_index)
         return nll_loss + alpha * loss_1 + beta * loss_2 + gamma * mutual_info_loss
+        # return nll_loss + alpha * loss_1 + beta * loss_2
 
     def test(self, z, pos_edge_index, neg_edge_index, neg_ratio, last=False):
         """Evaluates node embeddings :obj:`z` on positive and negative test

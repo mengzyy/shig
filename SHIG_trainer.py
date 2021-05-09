@@ -17,6 +17,7 @@ from SHIG import SHIG_Model
 
 from tensorboardX import SummaryWriter
 import datetime
+from optimizers.radam import RiemannianAdam
 
 
 class SHIGNetwork(torch.nn.Module):
@@ -146,6 +147,7 @@ class SHIGTrainer(object):
             embedding, y = embedding.detach().numpy(), y.int().numpy()
             self.writer.add_embedding(embedding, metadata=y, global_step=epoch)
             self.writer.close()
+            torch.save(self.z,"output/z"+".pt")
 
         if self.args.verbose:
             print('{}{} Val(auc,f1,f1_macro,f1_micro):{} {} {} {}'.format("#" * 10, "BEST EPOCH",
@@ -164,7 +166,10 @@ class SHIGTrainer(object):
         self.trial = trial
         # self.model = SHIGNetwork(self.device, self.args, trial, self.X).cuda()
         self.model = SHIGNetwork(self.device, self.args, trial, self.X)
-        self.optimizer = torch.optim.Adam(self.model.parameters(),
+        # self.optimizer = torch.optim.Adam(self.model.parameters(),
+        #                                   lr=self.args.learning_rate,
+        #                                   weight_decay=self.args.weight_decay)
+        self.optimizer = RiemannianAdam(self.model.parameters(),
                                           lr=self.args.learning_rate,
                                           weight_decay=self.args.weight_decay)
 
